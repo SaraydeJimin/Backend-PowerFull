@@ -9,6 +9,7 @@ const connectDB = async () => {
       password: process.env.BDSENA_PASSWORD,
       database: process.env.BDSENA_DATABASE,
       port: 5432, // Puerto por defecto de PostgreSQL
+      connectionString: process.env.DATABASE_URL,
       ssl: {
         rejectUnauthorized: false, // Si usas Render o alguna plataforma con SSL
       },
