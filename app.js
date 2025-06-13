@@ -30,22 +30,13 @@ connectDB()
     process.exit(1);
   });
 
-// Configuración de CORS
 const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = ["http://localhost:5173", "http://localhost:"];
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("No autorizado por CORS"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  origin: ['https://frontend-final-1-elw1.onrender.com'], // tu frontend en Render
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
+  credentials: true
 };
 
-// Middlewares
 app.use(cors(corsOptions));
 app.use(bodyParser.json({ limit: "10mb" }));
 app.use(bodyParser.urlencoded({ limit: "10mb", extended: true }));
