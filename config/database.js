@@ -3,6 +3,7 @@ const { Client } = require('pg'); // ✅ usamos Client, no connectDB ni Connecti
 
 const connectDB = async () => {
   const client = new Client({
+    database: process.env.DATABASE_URL,
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
     database: process.env.DB_NAME,
