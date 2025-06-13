@@ -1,0 +1,12 @@
+# Ignora node_modules (las dependencias instaladas)
+node_modules/
+
+# Ignora archivos de entorno
+.env
+
+# Ignora logs
+*.log
+
+# Ignora archivos del sistema
+.DS_Store
+Thumbs.db
