@@ -15,7 +15,7 @@ const orderDetailRoutes = require("./routes/orderDetailRoutes");
 const pagoRoutes = require("./routes/pagoRoutes");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const fileUpload = require("express-fileupload");
+const fileUpload = require('express-fileupload');
 
 
 // Crear una instancia de la aplicación Express
@@ -53,7 +53,7 @@ app.use(express.json());
 app.use(morgan("dev"));
 app.use(fileUpload({
   useTempFiles: true,
-  tempFileDir: "/tmp/"
+  tempFileDir: '/tmp/', 
 }));
 
 // Rutas principales

@@ -3,7 +3,7 @@ const Joi = require("joi");
 const { image } = require("../config/cloudinary");
 
 const productForCreation = Joi.object({
-  id_catalog: Joi.number().required(),
+  id_catalogo: Joi.number().required(),
   name: Joi.string().min(3).required(),
   description: Joi.string().min(3).required(),
   price: Joi.number().required(),
@@ -14,7 +14,7 @@ const productForCreation = Joi.object({
 // Creamos un esquema de validación para la actualización de productos usando Joi
 const productForUpdate = Joi.object({
   // Los mismos campos que en 'productForCreation' pero para actualización de producto
-  id_catalog: Joi.number().required(),
+  id_catalogo: Joi.number().required(),
   name: Joi.string().required(),
   description: Joi.string().required(),
   price: Joi.number().required(),
@@ -24,7 +24,7 @@ const productForUpdate = Joi.object({
 
 // Creamos un esquema de validación para la búsqueda de productos por catálogo
 const productForSearch = Joi.object({
-  id_catalog: Joi.number().optional(),
+  id_catalogo: Joi.number().optional(),
   name: Joi.string().optional(),
   minPrice: Joi.number().min(0).optional(),
   maxPrice: Joi.number().min(0).optional()

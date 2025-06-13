@@ -1,57 +1,59 @@
 const connectDB = require("../config/database");
 
-//ver todos los catalogos
+// Ver todos los catálogos
 const getAllCatalogService = async () => {
+  let connection;
   try {
-    const connection = await connectDB();
-    const [catalog] = await connection.execute("SELECT * FROM catalogo");
-    return catalog;
+    connection = await connectDB();
+    const result = await connection.query("SELECT * FROM catalogo");
+    return result.rows;
   } catch (error) {
-    console.error("Error al obtener el catalogo: ", error.message);
+    console.error("Error al obtener el catálogo: ", error.message);
     throw error;
+  } finally {
+    if (connection) await connection.end();
   }
 };
 
-//ver los catalogos por el nombre
+// Ver los catálogos por el nombre
 const getCatalogByNameService = async (nombre) => {
-    let connection;
-    try {
-      connection = await connectDB();
-      const [nombreExist] = await connection.execute(
-        "SELECT * FROM catalogo WHERE NOMBRE = ?",
-        [nombre]
-      );
-      return nombreExist;
-    } catch (error) {
-      console.error("Error al obtener el catalogo por nombre: ", error.message);
-      throw error;
-    } finally {
-      if (connection) await connection.end();
-    }
-  };
-  
+  let connection;
+  try {
+    connection = await connectDB();
+    const result = await connection.query(
+      "SELECT * FROM catalogo WHERE NOMBRE = $1",
+      [nombre]
+    );
+    return result.rows;
+  } catch (error) {
+    console.error("Error al obtener el catálogo por nombre: ", error.message);
+    throw error;
+  } finally {
+    if (connection) await connection.end();
+  }
+};
 
-// Servicio para crear un nuevo catalogo
+// Crear un nuevo catálogo
 const createCatalogService = async (catalog) => {
   let connection;
   try {
     connection = await connectDB();
-    // Validar que NO exista otro catálogo con ese nombre
-    const [existing] = await connection.execute(
-      "SELECT ID_CATALOGO FROM catalogo WHERE NOMBRE = ?",
+    const exist = await connection.query(
+      "SELECT ID_CATALOGO FROM catalogo WHERE NOMBRE = $1",
       [catalog.nombre]
     );
-    if (existing.length > 0) {
+    if (exist.rows.length > 0) {
       return { status: false, message: "Ya existe un catálogo con ese nombre" };
     }
-    // Si no existe, crea el catálogo
-    const [result] = await connection.execute(
-      `INSERT INTO catalogo (NOMBRE, DESCRIPCION) VALUES (?, ?)`,
+
+    const result = await connection.query(
+      "INSERT INTO catalogo (NOMBRE, DESCRIPCION) VALUES ($1, $2)",
       [catalog.nombre, catalog.descripcion]
     );
+
     return {
-      status: result.affectedRows === 1,
-      message: result.affectedRows === 1
+      status: result.rowCount === 1,
+      message: result.rowCount === 1
         ? "Catálogo registrado exitosamente"
         : "No se pudo registrar el catálogo",
     };
@@ -63,34 +65,36 @@ const createCatalogService = async (catalog) => {
   }
 };
 
-//aactualizar el catalogo
+// Actualizar un catálogo
 const updateCatalogService = async (id, updatedData) => {
   let connection;
   try {
     connection = await connectDB();
-    // Validar existencia del catálogo directamente aquí
-    const [existCatalog] = await connection.execute(
-      "SELECT ID_CATALOGO FROM catalogo WHERE ID_CATALOGO = ?",
+
+    const exist = await connection.query(
+      "SELECT ID_CATALOGO FROM catalogo WHERE ID_CATALOGO = $1",
       [id]
     );
-    if (existCatalog.length === 0) {
+    if (exist.rows.length === 0) {
       return { status: false, message: "El catálogo no existe" };
     }
-    // Validar si el nombre ya existe en otro catálogo
-    const [nameExists] = await connection.execute(
-      "SELECT ID_CATALOGO FROM catalogo WHERE NOMBRE = ? AND ID_CATALOGO != ?",
+
+    const nameExists = await connection.query(
+      "SELECT ID_CATALOGO FROM catalogo WHERE NOMBRE = $1 AND ID_CATALOGO != $2",
       [updatedData.nombre, id]
     );
-    if (nameExists.length > 0) {
+    if (nameExists.rows.length > 0) {
       return { status: false, message: "Ya existe otro catálogo con ese nombre" };
     }
-    const [result] = await connection.execute(
-      `UPDATE catalogo SET NOMBRE = ?, DESCRIPCION = ? WHERE ID_CATALOGO = ?`,
+
+    const result = await connection.query(
+      "UPDATE catalogo SET NOMBRE = $1, DESCRIPCION = $2 WHERE ID_CATALOGO = $3",
       [updatedData.nombre, updatedData.descripcion, id]
     );
+
     return {
-      status: result.affectedRows > 0,
-      message: result.affectedRows > 0
+      status: result.rowCount > 0,
+      message: result.rowCount > 0
         ? "Catálogo actualizado exitosamente"
         : "No se pudo actualizar el catálogo"
     };
@@ -102,26 +106,28 @@ const updateCatalogService = async (id, updatedData) => {
   }
 };
 
-//eliminar catalogo
+// Eliminar un catálogo
 const deleteCatalogService = async (id) => {
   let connection;
   try {
     connection = await connectDB();
-    // Validar existencia del catálogo antes de eliminar
-    const [existCatalog] = await connection.execute(
-      "SELECT ID_CATALOGO FROM catalogo WHERE ID_CATALOGO = ?",
+
+    const exist = await connection.query(
+      "SELECT ID_CATALOGO FROM catalogo WHERE ID_CATALOGO = $1",
       [id]
     );
-    if (existCatalog.length === 0) {
+    if (exist.rows.length === 0) {
       return { status: false, message: "El catálogo no existe" };
     }
-    const [result] = await connection.execute(
-      `DELETE FROM catalogo WHERE ID_CATALOGO = ?`,
+
+    const result = await connection.query(
+      "DELETE FROM catalogo WHERE ID_CATALOGO = $1",
       [id]
     );
+
     return {
-      status: result.affectedRows === 1,
-      message: result.affectedRows === 1
+      status: result.rowCount === 1,
+      message: result.rowCount === 1
         ? "Catálogo eliminado exitosamente"
         : "No se pudo eliminar el catálogo"
     };
@@ -133,4 +139,10 @@ const deleteCatalogService = async (id) => {
   }
 };
 
-module.exports = { getAllCatalogService, getCatalogByNameService, createCatalogService, deleteCatalogService, updateCatalogService };
+module.exports = {
+  getAllCatalogService,
+  getCatalogByNameService,
+  createCatalogService,
+  deleteCatalogService,
+  updateCatalogService,
+};

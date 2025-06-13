@@ -1,27 +1,31 @@
 const connectDB = require("../config/database");
 
-//ver todos los pedidos
+// Ver todos los pedidos
 const getAllOrderService = async ({ id_usuario = null, nombre = null, email = null, estado = null }) => {
   try {
     const connection = await connectDB();
-    let query = `SELECT p.ID_PEDIDO, p.ID_USUARIO, p.TOTAL, p.FECHA, p.ESTADO, u.NOMBRE, u.EMAIL FROM pedido p JOIN usuario u ON p.ID_USUARIO = u.ID_USUARIO`;
+    let query = `
+      SELECT p.id_pedido, p.id_usuario, p.total, p.fecha, p.estado, u.nombre, u.email 
+      FROM pedido p 
+      JOIN usuario u ON p.id_usuario = u.id_usuario`;
+    
     const conditions = [];
     const params = [];
 
     if (id_usuario) {
-      conditions.push("p.ID_USUARIO = ?");
+      conditions.push(`p.id_usuario = $${params.length + 1}`);
       params.push(id_usuario);
     }
     if (nombre) {
-      conditions.push("u.NOMBRE LIKE ?");
+      conditions.push(`u.nombre ILIKE $${params.length + 1}`);
       params.push(`%${nombre}%`);
     }
     if (email) {
-      conditions.push("u.EMAIL LIKE ?");
+      conditions.push(`u.email ILIKE $${params.length + 1}`);
       params.push(`%${email}%`);
     }
     if (estado) {
-      conditions.push("p.ESTADO = ?");
+      conditions.push(`p.estado = $${params.length + 1}`);
       params.push(estado);
     }
 
@@ -29,49 +33,49 @@ const getAllOrderService = async ({ id_usuario = null, nombre = null, email = nu
       query += " WHERE " + conditions.join(" AND ");
     }
 
-    query += " ORDER BY p.FECHA DESC";
+    query += " ORDER BY p.fecha DESC";
 
-    const [orders] = await connection.execute(query, params);
-    return orders;
+    const { rows } = await connection.query(query, params);
+    return rows;
   } catch (error) {
     console.error("Error al obtener los pedidos: ", error.message);
     throw error;
   }
 };
 
-//ver los pedidos de los usuarios
+// Ver pedidos de un usuario
 const getOrderByUserService = async (id_usuario) => {
   let connection;
   try {
     connection = await connectDB();
 
-    const [userExist] = await connection.execute(
-      "SELECT ID_USUARIO FROM usuario WHERE ID_USUARIO = ?",
+    const userExist = await connection.query(
+      "SELECT id_usuario FROM usuario WHERE id_usuario = $1",
       [id_usuario]
     );
 
-    if (userExist.length === 0) {
+    if (userExist.rows.length === 0) {
       console.error(`El usuario con ID ${id_usuario} no existe.`);
       return [];
     }
 
-    const [orders] = await connection.execute(
+    const orders = await connection.query(
       `SELECT 
-         p.ID_PEDIDO,
-         p.TOTAL, 
-         p.FECHA, 
-         p.ESTADO, 
-         u.NOMBRE, 
-         u.EMAIL,
-         pa.METODO_PAGO
+         p.id_pedido,
+         p.total, 
+         p.fecha, 
+         p.estado, 
+         u.nombre, 
+         u.email,
+         pa.metodo_pago
        FROM pedido p
-       JOIN usuario u ON p.ID_USUARIO = u.ID_USUARIO
-       LEFT JOIN pago pa ON pa.ID_PAGO = p.ID_PAGO  
-       WHERE p.ID_USUARIO = ?
-       ORDER BY p.FECHA DESC`,
+       JOIN usuario u ON p.id_usuario = u.id_usuario
+       LEFT JOIN pago pa ON pa.id_pago = p.id_pago  
+       WHERE p.id_usuario = $1
+       ORDER BY p.fecha DESC`,
       [id_usuario]
     );
-    return orders;
+    return orders.rows;
   } catch (error) {
     console.error("Error al obtener los pedidos por usuario: ", error.message);
     throw error;
@@ -82,12 +86,14 @@ const getOrderByUserService = async (id_usuario) => {
   }
 };
 
-//crear pedido
+// Crear pedido
 const createOrderService = async (order) => {
   try {
     const connection = await connectDB();
-    const [result] = await connection.execute(
-      `INSERT INTO pedido (ID_USUARIO, TOTAL, FECHA, ESTADO, ID_PAGO) VALUES (?, ?, ?, ?, ?)`,
+    const result = await connection.query(
+      `INSERT INTO pedido (id_usuario, total, fecha, estado, id_pago) 
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id_pedido`,
       [
         order.id_usuario,
         order.total,
@@ -96,34 +102,35 @@ const createOrderService = async (order) => {
         order.id_pago || null
       ]
     );
-    if (result.affectedRows === 1) {
-      return { 
-        status: true, 
-        message: "Pedido registrado exitosamente",
-        id_pedido: result.insertId
-      };
-    } else {
-      return { status: false, message: "No se pudo registrar el pedido" };
-    }
+    return {
+      status: true,
+      message: "Pedido registrado exitosamente",
+      id_pedido: result.rows[0].id_pedido
+    };
   } catch (error) {
     console.error("Error en createOrderService:", error.message);
     throw error;
   }
 };
 
-//actualizar total del pedido
+// Actualizar total del pedido
 const updateTotalPedidoService = async (id_pedido) => {
   try {
     const connection = await connectDB();
-    const [rows] = await connection.execute(
-      `SELECT IFNULL(SUM(PRECIO_TOTAL), 0) AS total FROM detalle_pedido WHERE ID_PEDIDO = ?`,
+
+    const { rows } = await connection.query(
+      `SELECT COALESCE(SUM(precio_total), 0) AS total 
+       FROM detalle_pedido 
+       WHERE id_pedido = $1`,
       [id_pedido]
     );
     const total = rows[0].total;
-    await connection.execute(
-      `UPDATE pedido SET TOTAL = ? WHERE ID_PEDIDO = ?`,
+
+    await connection.query(
+      `UPDATE pedido SET total = $1 WHERE id_pedido = $2`,
       [total, id_pedido]
     );
+
     return { status: true, total };
   } catch (error) {
     console.error("Error en updateTotalPedidoService:", error.message);
@@ -131,15 +138,15 @@ const updateTotalPedidoService = async (id_pedido) => {
   }
 };
 
-//elimina el pedido
+// Eliminar pedido
 const deleteOrderService = async (id_pedido) => {
   try {
     const connection = await connectDB();
-    const result = await connection.execute(
-      `DELETE FROM pedido WHERE ID_PEDIDO = ?`,
+    const result = await connection.query(
+      `DELETE FROM pedido WHERE id_pedido = $1`,
       [id_pedido]
     );
-    if (result[0].affectedRows === 1) {
+    if (result.rowCount === 1) {
       return { status: true, message: "Pedido eliminado exitosamente" };
     } else {
       return { status: false, message: "No se encontró el pedido a eliminar" };
@@ -150,12 +157,12 @@ const deleteOrderService = async (id_pedido) => {
   }
 };
 
-//actualiza el pedido
+// Actualizar pedido completo
 const updateOrderService = async (id_pedido, order) => {
   try {
     const connection = await connectDB();
-    const result = await connection.execute(
-      `UPDATE pedido SET ID_USUARIO = ?, TOTAL = ?, FECHA = ? WHERE ID_PEDIDO = ?`,
+    const result = await connection.query(
+      `UPDATE pedido SET id_usuario = $1, total = $2, fecha = $3 WHERE id_pedido = $4`,
       [
         order.id_usuario,
         order.total,
@@ -163,7 +170,7 @@ const updateOrderService = async (id_pedido, order) => {
         id_pedido
       ]
     );
-    if (result[0].affectedRows === 1) {
+    if (result.rowCount === 1) {
       return { status: true, message: "Pedido actualizado exitosamente" };
     } else {
       return { status: false, message: "No se encontró el pedido a actualizar" };
@@ -174,15 +181,15 @@ const updateOrderService = async (id_pedido, order) => {
   }
 };
 
-//función de admin para actualizar solo el estado del pedido
+// Actualizar solo el estado
 const updateEstadoOrderService = async (id_pedido, estado) => {
   try {
     const connection = await connectDB();
-    const result = await connection.execute(
-      `UPDATE pedido SET ESTADO = ? WHERE ID_PEDIDO = ?`,
+    const result = await connection.query(
+      `UPDATE pedido SET estado = $1 WHERE id_pedido = $2`,
       [estado, id_pedido]
     );
-    if (result[0].affectedRows === 1) {
+    if (result.rowCount === 1) {
       return { status: true, message: "Estado actualizado exitosamente" };
     } else {
       return { status: false, message: "No se encontró el pedido" };
